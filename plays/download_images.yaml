@@ -1,0 +1,4 @@
+- name: "Collect {{ item.name }} Images"
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ lookup('env', 'PWD') }}/images/{{ item.name }}.qcow2"

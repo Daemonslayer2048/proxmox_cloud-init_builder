@@ -1,0 +1,40 @@
+- name: Download Cloud-Init Images
+  hosts: localhost
+  gather_facts: "no"
+  tasks:
+    - name: Include Variables File
+      ansible.builtin.include_vars:
+        file: ./variables.yaml
+
+    - name: Import Download Image  Tasks
+      include_tasks: download_images.yaml
+      loop: "{{ images }}"
+
+- name: Setup Directories in Nodes
+  hosts: nodes
+  tasks:
+    - name: Include Variables File
+      ansible.builtin.include_vars:
+        file: ./vars/variables.yaml
+
+    - name: Create Directory in Home
+      ansible.builtin.file:
+        path: "{{ remote_image_storage }}"
+        state: directory
+
+- name: Create VMs
+  hosts: nodes
+  tasks:
+    - name: Include Variables File
+      ansible.builtin.include_vars:
+        file: ./vars/variables.yaml
+
+    - name: Upload Images
+      ansible.builtin.copy:
+        src: "{{ lookup('env', 'PWD') }}/images/{{ item.name }}.qcow2"
+        dest: "{{ remote_image_storage }}/{{ item.name }}.qcow2"
+      loop: "{{ images }}"
+
+    - name: Import Create VM Task
+      include_tasks: create_vm.yaml
+      loop: "{{ images }}"

@@ -1,0 +1,45 @@
+# This whole task list just lacks idempotence and it kills my insides. Sadly in
+# typical ansible fashin is just missing the tools to get things done.
+- name: Check if VM Already Exists
+  ansible.builtin.shell:
+    cmd:  "qm list | grep \"^      {{ host_vm_id }}{{ item.id }} \""
+  register: vm_exists
+  ignore_errors: yes
+
+# Tried to make use of the promox_kvm module but sadly it ran into many problems.
+# Mostly with creating the VM, returns OK but ends up not creating the VM.
+- name: Confirm VM Does Not Already Have a Disk Attached
+  ansible.builtin.shell:
+    cmd:  "qm create {{ host_vm_id }}{{ item.id }} -name {{ item.name }} -pool {{ pool }} -net0 virtio,bridge=vmbr0"
+  when: vm_exists.rc == 1
+
+- name: Confirm VM Does Not Already Have a Disk Attached
+  ansible.builtin.shell:
+    cmd:  "cat /etc/pve/qemu-server/{{ host_vm_id }}{{ item.id }}.conf | grep scsi0"
+  register: attached_disk
+  ignore_errors: yes
+
+- name: "Import {{ item.name }} to VM"
+  ansible.builtin.command:
+    cmd: "qm importdisk {{ host_vm_id }}{{ item.id }} {{ remote_image_storage }}/{{ item.name }}.qcow2 {{ storage_type }}"
+  when: (attached_disk.rc == 1) and (vm_exists.rc == 1)
+
+- name: "Attach Imported Image to VM"
+  ansible.builtin.command:
+    cmd: "qm set {{ host_vm_id }}{{ item.id }} --scsi0 {{ storage_type }}:vm-{{ host_vm_id }}{{ item.id }}-disk-0"
+  when: (attached_disk.rc == 1) and (vm_exists.rc == 1)
+
+- name: Set VM Boot Options
+  ansible.builtin.command:
+    cmd: "qm set {{ host_vm_id }}{{ item.id }} --boot c --bootdisk scsi0"
+  when: vm_exists.rc == 1
+
+- name: "Attach Serial Console to VM"
+  ansible.builtin.command:
+    cmd: "qm set {{ host_vm_id }}{{ item.id }} --serial0 socket --vga serial0"
+  when: vm_exists.rc == 1
+
+- name: "Convert VM to Template"
+  ansible.builtin.command:
+    cmd: "qm template {{ host_vm_id }}{{ item.id }}"
+  when: vm_exists.rc == 1

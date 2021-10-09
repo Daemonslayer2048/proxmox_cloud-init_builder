@@ -1,0 +1,11 @@
+nodes:
+  hosts:
+    192.168.10.4:
+      host_vm_id: 901
+      storage_type: "local-zfs"
+    192.168.10.5:
+      host_vm_id: 902
+      storage_type: "local-zfs"
+    192.168.10.6:
+      host_vm_id: 903
+      storage_type: "local-zfs"
